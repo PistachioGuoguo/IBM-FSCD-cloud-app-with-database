@@ -64,8 +64,9 @@ class Course(models.Model):
     is_enrolled = False
 
     def __str__(self):
-        return "Name: " + self.name + "," + \
-               "Description: " + self.description
+        return self.name
+        # return "Name: " + self.name + "," + \
+        #        "Description: " + self.description
 
 
 # Lesson model
@@ -121,6 +122,9 @@ class Question(models.Model):
     question_text = models.TextField(default='Question text...')
     grade = models.IntegerField(default=0)
 
+    def __str__(self):
+        return self.course.name + ' - ' + self.question_text
+
     def is_get_score(self, selected_ids):  # check whether user get score of the question by making the correct choice
         all_answers = self.choice_set.filter(is_correct=True).count()
         selected_correct = self.choice_set.filter(is_correct=True, id__in=selected_ids).count()
@@ -141,6 +145,9 @@ class Choice(models.Model):
     question = models.ForeignKey(Question, on_delete=models.CASCADE)  # 1 question - many choices
     choice_text = models.TextField(default='Choice text...')
     is_correct = models.BooleanField(default=False)
+
+    def __str__(self):
+        return self.question.question_text + ' - ' + self.choice_text
 
 
 # <HINT> The submission model
