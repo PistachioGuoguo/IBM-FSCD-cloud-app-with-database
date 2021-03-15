@@ -1,7 +1,7 @@
 from django.shortcuts import render
 from django.http import HttpResponseRedirect
 # <HINT> Import any new Models here
-from .models import Course, Enrollment, Question
+from .models import Course, Enrollment, Question, Choice, Submission
 from django.contrib.auth.models import User
 from django.shortcuts import get_object_or_404, render, redirect
 from django.urls import reverse
@@ -88,8 +88,6 @@ class CourseDetailView(generic.DetailView):
     model = Course
     template_name = 'onlinecourse/course_detail_bootstrap.html'
 
-    # add questions to CourseDetailView
-
 
 
 
@@ -104,7 +102,81 @@ def enroll(request, course_id):
         course.total_enrollment += 1
         course.save()
 
-    return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=(course.id,)))
+    return HttpResponseRedirect(reverse(viewname='onlinecourse:course_details', args=[course.id,]))
+
+
+# collect submitted answers from request
+def extract_answers(request):
+    if request.method == "POST":
+        submitted_answers = []
+        for key in request.POST:
+            if key.startswith('choice'):
+               value = request.POST[key]
+               choice_id = int(value)
+               submitted_answers.append(choice_id)
+        return submitted_answers
+
+
+def submit_view(request, course_id):
+    course = get_object_or_404(Course, pk=course_id)
+    user = request.user
+    enrollment = Enrollment.objects.get(user=user, course=course)
+
+    submission = Submission.objects.create(enrollment=enrollment)
+
+    # add selected choice to submission
+
+    submitted_answers = extract_answers(request)
+
+    # print(submitted_answers)
+
+    for choice_id in submitted_answers:
+        choice = get_object_or_404(Choice, pk=choice_id)
+        submission.choices.add(choice)
+        print(choice)
+    submission.save()
+    return HttpResponseRedirect(reverse(viewname='onlinecourse:show_exam_result', args=[course.id, submission.id]))
+
+
+
+
+def show_exam_result(request, course_id, submission_id):
+
+    course = get_object_or_404(Course, pk=course_id)
+    submission = get_object_or_404(Submission, pk=submission_id)
+
+    # calculate full marks
+    full_grade = 0
+    for question in course.question_set.all():
+        full_grade += question.grade
+    pass_grade = int(full_grade * 0.6)
+
+    grade = 0
+
+    for question in course.question_set.all():
+        is_all_correct = True
+        for choice in question.choice_set.all():
+            # incorrect if have one wrong answer or missed one answer
+            if (not choice.is_correct and choice in submission.choices.all()) or \
+                    (choice.is_correct and choice not in submission.choices.all()):
+                is_all_correct = False
+                break
+        if is_all_correct:
+            grade += question.grade
+
+    # this version only works for "single correct choice case"
+    # for choice in submission.choices.all():
+    #     if choice.is_correct:
+    #         grade += choice.question.grade
+
+
+    context = {'course': course, 'submission': submission,
+                'grade':grade, 'full_grade':full_grade, 'pass_grade':pass_grade}
+
+    return render(request, 'onlinecourse/exam_result_bootstrap.html', context)
+
+
+
 
 
 # <HINT> Create a submit view to create an exam submission record for a course enrollment,
