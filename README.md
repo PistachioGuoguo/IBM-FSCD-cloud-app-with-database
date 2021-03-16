@@ -1,5 +1,6 @@
 
 My app deployed at: http://zsang.us-south.cf.appdomain.cloud/onlinecourse/
+Please test with: username: admin password: 1111
 
 **General Notes**
 
